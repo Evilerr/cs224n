@@ -24,6 +24,8 @@ random.seed(0)
 #--pretrain_lr：预训练学习率，默认 0.006
 #--finetune_lr：微调学习率，默认 0.0006
 #--tb_expt_name：TensorBoard 实验名称
+
+#把整段 argparse 理解成 run.py 的“启动菜单”：用户在终端选择功能，程序根据选项执行对应代码。
 argp = argparse.ArgumentParser()
 argp.add_argument('function', help="Choose pretrain, finetune, or evaluate")
 argp.add_argument('variant', help="Choose vanilla or rope")
@@ -67,6 +69,7 @@ pretrain_dataset = dataset.CharCorruptionDataset(text, block_size)
 
 # We don't suggest you change these hyperparameters, as they're known to work.
 # use them for both the vanilla and the RoPE models
+#创建模型的“配置说明书” mconf，还没有真正创建模型。
 mconf = models.GPTConfig(
     pretrain_dataset.vocab_size,
     pretrain_dataset.block_size,
@@ -81,13 +84,14 @@ model = None
 if args.variant == 'vanilla':
     # TODO: [part c] Make some model here
     ### YOUR CODE HERE ###
-    model = models.GPT(mconf).to(device)
+    model = models.GPT(mconf).to(device) #to(device)是说把模型放到指定设备上运行
     ### END YOUR CODE ###
 elif args.variant == 'rope':
     # TODO: [part g] Make some other model here
     # set mconf.rope parameter
     ### YOUR CODE HERE ###
-    pass
+    mconf.rope = True
+    model = models.GPT(mconf).to(device)
     ### END YOUR CODE ###
 else:
     raise ValueError("Unknown model variant")
@@ -117,12 +121,28 @@ if args.function == 'pretrain':
     # writer=writer
 
     ### YOUR CODE HERE ###
-    pass
+    
+    pretrain_config = trainer.TrainerConfig(
+        max_epochs = 650,
+        batch_size = 128,
+        learning_rate = args.pretrain_lr,
+        lr_decay = True,
+        warmup_tokens = 512*20,
+        final_tokens = 650*len(pretrain_dataset)*block_size,
+        num_workers = 4,     #DataLoader 用4个后台进程准备数据，训练时取 batch 会更快
+        writer = writer,     #
+        #checkpoint settings
+        ckpt_path=args.writing_params_path
+        )
+
+    pretrainer = trainer.Trainer(model,pretrain_dataset,None,pretrain_config)
+
+    pretrainer.train()
     ### END YOUR CODE ###
 elif args.function == 'finetune':
     assert args.writing_params_path is not None
     assert args.finetune_corpus_path is not None
-    # TODO [part c] [part f]:
+    # TODO [part d] [part f]:
     # - Given:
     #     1. A finetuning corpus specified in args.finetune_corpus_path
     #     2. A path args.reading_params_path containing pretrained model
@@ -156,7 +176,42 @@ elif args.function == 'finetune':
     #     number of epochs for each case.
 
     ### YOUR CODE HERE ###
-    pass
+    finetune_text = open(args.finetune_corpus_path, encoding='utf-8').read()
+    finetune_dataset = dataset.NameDataset(pretrain_dataset,finetune_text)
+
+    if args.reading_params_path is not None:#有预训练模型
+
+        #加载预训练模型
+        model.load_state_dict(torch.load(args.reading_params_path))
+
+        finetune_config = trainer.TrainerConfig(
+            max_epochs = 10,
+            batch_size = 256,
+            learning_rate = args.finetune_lr,
+            lr_decay = True,
+            warmup_tokens = 512*20,
+            final_tokens = 200*len(pretrain_dataset)*block_size,
+            num_workers = 4,
+            writer = writer,
+            ckpt_path=args.writing_params_path
+        )
+
+        finetune_trainer = trainer.Trainer(model,finetune_dataset,None, finetune_config)
+    else:
+        finetune_config = trainer.TrainerConfig(
+            max_epochs = 75,
+            batch_size = 256,
+            learning_rate = args.finetune_lr,
+            lr_decay = True,
+            warmup_tokens = 512*20,
+            final_tokens = 200*len(pretrain_dataset)*block_size,
+            num_workers = 4,
+            writer = writer,
+            ckpt_path=args.writing_params_path
+        )
+        finetune_trainer = trainer.Trainer(model,finetune_dataset,None, finetune_config)
+
+    finetune_trainer.train()
     ### END YOUR CODE ###
 elif args.function == 'evaluate':
     assert args.outputs_path is not None
