@@ -12,6 +12,18 @@ from torch.utils.tensorboard import SummaryWriter
 
 random.seed(0)
 
+#function 对应 finetune，表示执行什么任务      可选pretrain：预训练. finetune：微调. evaluate：评估
+#variant 对应 vanilla，表示模型类型            可选vanilla：普通位置编码  rope：旋转位置编码
+#pretrain_corpus_path：预训练数据路径          对应 wiki.txt
+
+#--reading_params_path：读取已有模型参数
+#--writing_params_path：模型训练完保存到哪里
+#--finetune_corpus_path：微调数据路径
+#--eval_corpus_path：评估数据路径
+#--outputs_path：预测结果保存路径
+#--pretrain_lr：预训练学习率，默认 0.006
+#--finetune_lr：微调学习率，默认 0.0006
+#--tb_expt_name：TensorBoard 实验名称
 argp = argparse.ArgumentParser()
 argp.add_argument('function', help="Choose pretrain, finetune, or evaluate")
 argp.add_argument('variant', help="Choose vanilla or rope")
@@ -46,6 +58,9 @@ writer = SummaryWriter(log_dir='expt/%s/%s_%s_pt_lr_%f_ft_lr_%f' % (
 # It's because we're using it as a hack to always have the same vocabulary
 # (that is, the same mapping from character to integer, and we build the
 # vocab from the pretraining corpus.)
+
+#block_size = 128：每条文本序列包含128个字符 token。
+
 block_size = 128
 text = open(args.pretrain_corpus_path, encoding='utf-8').read()
 pretrain_dataset = dataset.CharCorruptionDataset(text, block_size)
@@ -66,7 +81,7 @@ model = None
 if args.variant == 'vanilla':
     # TODO: [part c] Make some model here
     ### YOUR CODE HERE ###
-    pass
+    model = models.GPT(mconf).to(device)
     ### END YOUR CODE ###
 elif args.variant == 'rope':
     # TODO: [part g] Make some other model here
