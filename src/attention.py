@@ -17,14 +17,14 @@ from torch.nn import functional as F
 
 logger = logging.getLogger(__name__)
 
-
+#事先做一个rope表格
 def precompute_rotary_emb(dim, max_positions):
     """
     RoPE uses the following sinusoidal functions to encode positions:
 
     cos(t theta_i) and sin(t theta_i)
         where t is the position and
-              theta_i = 1/10000^(-2(i-1)/dim) for i in [1, dim/2]
+              theta_i = 1/10000^(2(i-1)/dim) for i in [1, dim/2]
 
     Since the maximum length of sequences is known, we can precompute
     these values to speed up training.
@@ -38,7 +38,18 @@ def precompute_rotary_emb(dim, max_positions):
     rope_cache = None
     # TODO: [part g]
     ### YOUR CODE HERE ###
-    pass
+    
+    theta = 1 / 10000 ** (torch.arange(0,dim,2).float() / dim)
+
+    positions = torch.arange(max_positions)
+
+    angles = torch.outer(positions , theta)
+
+    rope_cache = torch.stack(
+        (torch.cos(angles),torch.sin(angles)),
+        dim=-1
+    )
+
     ### END YOUR CODE ###
     return rope_cache
 
@@ -58,7 +69,21 @@ def apply_rotary_emb(x, rope_cache):
 
     rotated_x = None
     ### YOUR CODE HERE ###
-    pass
+
+    #x.shape = [batch_size,head,token(应该就是那个block_size),dim(被head分掉的维度)]
+
+    sequence_length = x.shape[2]
+    rope_cache = rope_cache[:sequence_length]
+
+    x = x.float().reshape(x.shape[0] , x.shape[1] , x.shape[2] , -1 , 2)
+
+    x = torch.view_as_complex(x)
+
+    rope_cache = torch.view_as_complex(rope_cache)
+
+    rotated_x = x * rope_cache
+
+    rotated_x = torch.view_as_real(rotated_x).flatten(3) #flatten(3):从第3维开始，把后面的所有维度合并成一个维度。
     ### END YOUR CODE ###
     return rotated_x
 

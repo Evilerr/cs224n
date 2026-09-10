@@ -79,9 +79,10 @@ class CharCorruptionDataset(Dataset):
         self.MASK_CHAR = "\u2047" # the doublequestionmark character, for mask
         self.PAD_CHAR = "\u25A1" # the empty square character, for pad
 
-        chars = list(sorted(list(set(data))))
+        chars = list(sorted(list(set(data))))   #set是把比如‘hello’ 变成 ‘h,e,l,o’
         assert self.MASK_CHAR not in chars
         assert self.PAD_CHAR not in chars
+        #chars = ["□", "⁇", "a", "b", "c"]
         chars.insert(0, self.MASK_CHAR)
         chars.insert(0, self.PAD_CHAR)
 
@@ -89,11 +90,11 @@ class CharCorruptionDataset(Dataset):
         self.itos = {i:ch for i,ch in enumerate(chars)}
 
         data_size, vocab_size = len(data), len(chars)
-        print(f'data has {data_size} characters, {vocab_size} unique.')
+        print(f'data has {data_size} characters, {vocab_size} unique.')  #1.data里有多少个字符  2.不同字符种类的数量
 
         self.block_size = block_size
         self.vocab_size = vocab_size
-        self.data = data.split('\n')
+        self.data = data.split('\n')    #这行把整份文本按“换行”切成多条文本
 
     def __len__(self):
         return len(self.data)
@@ -101,7 +102,32 @@ class CharCorruptionDataset(Dataset):
     def __getitem__(self, idx):
         # TODO [part e]: see spec above
         ### YOUR CODE HERE ###
-        pass
+        
+        document = self.data[idx]
+
+        truncation_length = random.randint(4,int(self.block_size * 7 / 8))
+        document = document[:truncation_length]
+
+        masked_length = random.randint(1,len(document) // 2)
+        masked_start = random.randint(0,len(document) - masked_length)
+
+        #分成三段 中间被遮住
+        prefix = document[:masked_start]
+
+        masked_content = document[masked_start : masked_start + masked_length]
+
+        suffix = document[masked_start + masked_length : ]
+
+        masked_string = prefix + self.MASK_CHAR + suffix + self.MASK_CHAR + masked_content
+        masked_string += self.PAD_CHAR * (self.block_size + 1 - len(masked_string))
+
+        x = masked_string[:-1]
+        y = masked_string[1:]
+
+        x = torch.tensor([self.stoi[c] for c in x], dtype=torch.long)
+        y = torch.tensor([self.stoi[c] for c in y], dtype=torch.long)
+
+        return x,y
         ### END YOUR CODE ###
 
 
