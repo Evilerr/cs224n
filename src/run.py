@@ -44,7 +44,7 @@ args = argp.parse_args()
 device = 'cpu'
 if torch.cuda.is_available():
     device = torch.cuda.current_device()
-elif torch.backends.mps.is_available() and args.variant == 'vanilla':
+elif torch.backends.mps.is_available():
     device = 'mps'
 
 # TensorBoard training log
@@ -129,7 +129,7 @@ if args.function == 'pretrain':
         lr_decay = True,
         warmup_tokens = 512*20,
         final_tokens = 650*len(pretrain_dataset)*block_size,
-        num_workers = 4,     #DataLoader 用4个后台进程准备数据，训练时取 batch 会更快
+        num_workers = 0,     #DataLoader 用4个后台进程准备数据，训练时取 batch 会更快
         writer = writer,     #
         #checkpoint settings
         ckpt_path=args.writing_params_path
@@ -191,7 +191,7 @@ elif args.function == 'finetune':
             lr_decay = True,
             warmup_tokens = 512*20,
             final_tokens = 200*len(pretrain_dataset)*block_size,
-            num_workers = 4,
+            num_workers = 0,
             writer = writer,
             ckpt_path=args.writing_params_path
         )
@@ -205,7 +205,7 @@ elif args.function == 'finetune':
             lr_decay = True,
             warmup_tokens = 512*20,
             final_tokens = 200*len(pretrain_dataset)*block_size,
-            num_workers = 4,
+            num_workers = 0,
             writer = writer,
             ckpt_path=args.writing_params_path
         )
