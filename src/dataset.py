@@ -74,10 +74,10 @@ from torch.utils.data import Dataset
 #   x: John Stephen. Born in Glasgow, Steph⁇lder's apprentice on⁇en became a we⁇□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□
 #   y: ohn Stephen. Born in Glasgow, Steph⁇lder's apprentice on⁇en became a we⁇□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□
 
-class CharCorruptionDataset(Dataset):
+class CharCorruptionDataset(Dataset): #把文本变成如上形式
     def __init__(self, data, block_size):
-        self.MASK_CHAR = "\u2047" # the doublequestionmark character, for mask
-        self.PAD_CHAR = "\u25A1" # the empty square character, for pad
+        self.MASK_CHAR = "\u2047" # the doublequestionmark character, for mask  ？？
+        self.PAD_CHAR = "\u25A1" # the empty square character, for pad      □
 
         chars = list(sorted(list(set(data))))   #set是把比如‘hello’ 变成 ‘h,e,l,o’
         assert self.MASK_CHAR not in chars
@@ -89,7 +89,7 @@ class CharCorruptionDataset(Dataset):
         self.stoi = {ch:i for i,ch in enumerate(chars)}
         self.itos = {i:ch for i,ch in enumerate(chars)}
 
-        data_size, vocab_size = len(data), len(chars)
+        data_size, vocab_size = len(data), len(chars)       #这里vocab_size就是为了embedding表格准备的吧
         print(f'data has {data_size} characters, {vocab_size} unique.')  #1.data里有多少个字符  2.不同字符种类的数量
 
         self.block_size = block_size
@@ -127,6 +127,7 @@ class CharCorruptionDataset(Dataset):
         x = torch.tensor([self.stoi[c] for c in x], dtype=torch.long)
         y = torch.tensor([self.stoi[c] for c in y], dtype=torch.long)
 
+        # x 会经过 embedding 和 Transformer；y 不经过 embedding，它只作为正确答案，用来计算 loss。
         return x,y
         ### END YOUR CODE ###
 
@@ -154,9 +155,11 @@ class NameDataset(Dataset):
         self.itos = pretraining_dataset.itos
         self.stoi = pretraining_dataset.stoi
         self.block_size = pretraining_dataset.block_size
+        #避免微调数据中出现预训练词表没有的字符
         self.data = list(data.encode('utf-8').decode('ascii', errors='ignore').split('\n'))
 
     def __len__(self):
+        #因为原始 TSV 文件通常以换行符 \n 结尾
         return len(self.data) - 1
 
     def __getitem__(self, idx):

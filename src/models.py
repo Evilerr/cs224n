@@ -80,7 +80,7 @@ class GPT(nn.Module):
         self.drop = nn.Dropout(config.embd_pdrop)
         self.rope = config.rope
         # transformer
-        self.blocks = nn.Sequential(*[Block(config) for _ in range(config.n_layer)])
+        self.blocks = nn.Sequential(*[Block(config) for _ in range(config.n_layer)]) # * 是 Python 的列表解包运算符
         # decoder head
         self.ln_f = nn.LayerNorm(config.n_embd)
         self.head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
@@ -102,11 +102,13 @@ class GPT(nn.Module):
     def get_block_size(self):
         return self.block_size
 
+    # 这里的 idx 是一整个 batch 的字符编号张量 ,shape为(batch_size,block_size),里面就是被分开的各个字符对应的编号
     def forward(self, idx, targets=None):
         b, t = idx.size()
         assert t <= self.block_size, f"Cannot forward, model block size ({t}, {self.block_size}) is exhausted."
 
         # forward the GPT model
+        # token_embeddings.shape == [B, T, 256]
         token_embeddings = self.tok_emb(idx) # each index maps to a (learnable) vector
         if self.rope:
             x_input = token_embeddings
