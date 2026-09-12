@@ -117,7 +117,8 @@ class GPT(nn.Module):
             x_input = token_embeddings + position_embeddings
 
         x = self.drop(x_input)
-        x = self.blocks(x)
+        x = self.blocks(x)      #        x = x + self.attn(self.ln1(x))
+                                #        x = x + self.mlp(self.ln2(x))
         x = self.ln_f(x)
         logits = self.head(x)
 

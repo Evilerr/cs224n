@@ -135,9 +135,10 @@ class CausalSelfAttention(nn.Module):
         self.attn_drop = nn.Dropout(config.attn_pdrop)
         self.resid_drop = nn.Dropout(config.resid_pdrop)
         # output projection
+        # 多头自注意力中最后的输出投影
         self.proj = nn.Linear(config.n_embd, config.n_embd)
         # causal mask to ensure that attention is only applied to the left in the input sequence
-        self.register_buffer("mask", torch.tril(torch.ones(config.block_size, config.block_size))
+        self.register_buffer("mask", torch.tril(torch.ones(config.block_size, config.block_size)) # tril 表示保留下三角矩阵
                                      .view(1, 1, config.block_size, config.block_size))
         self.n_head = config.n_head
 
@@ -153,17 +154,17 @@ class CausalSelfAttention(nn.Module):
             # TODO: [part g] Apply RoPE to the query and key.
             ### YOUR CODE HERE ###
             
-            k = apply_rotary_emb(k,self.rope_cache)
             q = apply_rotary_emb(q,self.rope_cache)
+            k = apply_rotary_emb(k,self.rope_cache)
             ### END YOUR CODE ###
 
-        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-
+        # causal self-attention; Self-attend: (B, h, T, d/h) x (B, h, d/h, T) -> (B, h, T, T)
+        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))  #除以根号下d/h
+        # 把分数右上三角的部分变成极小值
         att = att.masked_fill(self.mask[:,:,:T,:T] == 0, -1e10)
         att = F.softmax(att, dim=-1)
         att = self.attn_drop(att)
-        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        y = att @ v # (B, h, T, T) x (B, h, T, d/h) -> (B, h, T, d/h)
         y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
 
         # output projection
@@ -171,6 +172,11 @@ class CausalSelfAttention(nn.Module):
         return y
 
 
+
+
+
+
+#都没用上
 class CausalCrossAttention(nn.Module):
     """
     Modifications over the self-attention layer to handle two inputs and perform
